@@ -88,18 +88,45 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 	@Override
 	public String stemWord(String word) {
 		word = convertCyrillicToLatinString(word);
-		if (stopset.contains(word.toLowerCase()))
+		if (stopset.contains(word.toLowerCase())) {
 			return word;
+		}
 		String stemmed = transform(word);
 		for (int i=0; i<wordPatterns.size(); i++) {
 			Matcher matcher = wordPatterns.get(i).matcher(stemmed);
 			if (matcher.matches()) {
+				System.out.println(i + " " + matcher.group(0) + " " + matcher.group(1) + " " + wordPatterns.get(i));
 			    // group(0) contains the entire string that matched the pattern.
-				if (hasAVowel(matcher.group(1)) && matcher.group(1).length() > 1)
+				if (hasAVowel(matcher.group(1).toLowerCase()) && matcher.group(1).length() > 1)
 					return matcher.group(1);
 			}
 		}
 		return stemmed;
+	}
+	
+	/**
+	 * Uklanjanje sufiksa koji pocinju crticom.
+	 * <p>
+	 * <i>If a stop-word is encountered, it is skipped. Otherwise, the suffix of the word is first transformed and then removed.</i>
+	 * @param line Linija treba obraditi
+	 * @return Obradjena linija
+	 */
+	public String removeDashSuffixes(String line) {
+		String [] words = line.split("\\s+");
+		StringBuffer sb = new StringBuffer ();
+		
+		String [] suffixes = {"-u", "-a", "-ju", "-ja", "-om"};
+		
+		for (String word: words) {
+			for (String suffix: suffixes) {
+				if (word.endsWith(suffix)) {
+					word = word.replaceAll(suffix, "");
+				}
+			}
+			sb.append(word + " ");
+		}
+		
+		return sb.toString().trim();
 	}
 
 	/**
@@ -109,10 +136,13 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 	 */
 	@Override
 	public String stemLine(String line) {
+		line = removeDashSuffixes(line);
+		//System.out.print(line);
 		String [] words = line.split("\\b");
 		StringBuffer sb = new StringBuffer ();
-		for (String word: words)
+		for (String word: words) {
 			sb.append(stemWord(word));
+		}
 		return sb.toString().trim();
 	}
 	
@@ -127,8 +157,9 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 	 */
 	private String transform (String word) {
 		for (String key: transformations.keySet())
-			if (word.endsWith(key))
+			if (word.endsWith(key)) {
 				return word.substring(0, word.length()-key.length()) + transformations.get(key);
+			}
 		return word;
 	}
 	
@@ -241,6 +272,17 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		wordEnd = new ArrayList<String> ();
 		wordPatterns = new ArrayList<Pattern>();
 		
+		wordStart.add(".+(k)"); wordEnd.add("ki|ka|ko|kom|ku|ke|kim|kog"); // Nemanja, palatalizacija
+		wordStart.add(".+(g)"); wordEnd.add("ni"); 		// Nemanja, palatalizacija
+		wordStart.add(".+(k)"); wordEnd.add("anje"); 	// Nemanja, palatalizacija
+		wordStart.add(".+(h)"); wordEnd.add("ni"); 		// Nemanja, palatalizacija
+		wordStart.add(".+(g)"); wordEnd.add("iti"); 		// Nemanja, palatalizacija
+		wordStart.add(".+(k)"); wordEnd.add("tvo"); 		// Nemanja, palatalizacija, vlasništvo, razbojništvo
+		
+		wordStart.add(".+"); wordEnd.add("ski|ska|sko|skom|sku|ske|skih|skim"); // Nemanja, prisovjni pridevi
+		wordStart.add(".+"); wordEnd.add("ški|ška|ško|škom|šku|ške|ških|škim"); // Nemanja, prisvojni pridevi
+		wordStart.add(".+l"); wordEnd.add("jen|jena|jeno"); // Nemanja, trpni glagolski pridev -ljen
+		
 		wordStart.add(".+(s|š)k"); wordEnd.add("ijima|ijega|ijemu|ijem|ijim|ijih|ijoj|ijeg|iji|ije|ija|oga|ome|omu|ima|og|om|im|ih|oj|i|e|o|a|u");
 		wordStart.add(".+(s|š)tv"); wordEnd.add("ima|om|o|a|u");
 		wordStart.add(".+(t|m|p|r|g)anij"); wordEnd.add("ama|ima|om|a|u|e|i|");
@@ -262,6 +304,7 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		wordStart.add(".+ozil"); wordEnd.add("ima|om|a|e|u|i|");
 		wordStart.add(".+olov"); wordEnd.add("ima|i|a|e");
 		wordStart.add(".+ol"); wordEnd.add("ima|om|a|u|e|i|");
+		//wordStart.add(".+al"); wordEnd.add("ima|om|a|u|e|i|"); // Nemanja
 		wordStart.add(".+lem"); wordEnd.add("ama|ima|om|a|e|i|u|o|");
 		wordStart.add(".+ram"); wordEnd.add("ama|om|a|e|i|u|o");
 		wordStart.add(".+(a|d|e|o)r"); wordEnd.add("ama|ima|om|u|a|e|i|");
@@ -278,6 +321,9 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		wordStart.add(".+[^dkml]ov"); wordEnd.add("ijemu|ijima|ijega|ijeg|ijem|ijim|ijih|ijoj|oga|ome|omu|ima|iji|ije|ija|iju|im|ih|oj|om|og|i|a|u|e|o|");
 		wordStart.add(".+(m|l)ov"); wordEnd.add("ima|om|a|u|e|i|");
 		wordStart.add(".+el"); wordEnd.add("ijemu|ijima|ijega|ijeg|ijem|ijim|ijih|ijoj|oga|ome|omu|ima|iji|ije|ija|iju|im|ih|oj|om|og|i|a|u|e|o|");
+
+		//wordStart.add(".+(s|š)"); wordEnd.add("enje|enja"); // Nemanja, glagolske imenice kao što su hapšenje, pušenje, nošenje
+		
 		wordStart.add(".+(a|e|š)nj"); wordEnd.add("ijemu|ijima|ijega|ijeg|ijem|ijim|ijih|ijoj|oga|ome|omu|ima|iji|ije|ija|iju|ega|emu|eg|em|im|ih|oj|om|og|a|e|i|o|u");
 		wordStart.add(".+čin"); wordEnd.add("ama|ome|omu|oga|ima|og|om|im|ih|oj|a|u|i|o|e|");
 		wordStart.add(".+roši"); wordEnd.add("vši|smo|ste|še|mo|te|ti|li|la|lo|le|m|š|t|h|o");
@@ -295,7 +341,8 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		wordStart.add(".+ur"); wordEnd.add("ajući|asmo|aste|ajmo|ajte|amo|ate|aju|ati|aše|ahu|ala|ali|ale|alo|ana|ano|ani|ane|al|at|ah|ao|aj|an|am|aš");
 		wordStart.add(".+(a|i|o)staj"); wordEnd.add("asmo|aste|ahu|ati|emo|ete|aše|ali|ući|ala|alo|ale|mo|ao|em|eš|at|ah|te|e|u|");
 		wordStart.add(".+(b|c|č|ć|d|e|f|g|j|k|n|r|t|u|v)a"); wordEnd.add("lama|lima|lom|lu|li|la|le|lo|l");
-		wordStart.add(".+(t|č|j|ž|š)aj"); wordEnd.add("evima|evi|eva|eve|ama|ima|em|a|e|i|u|");
+		wordStart.add(".+(t|č|j|ž|š)aj"); wordEnd.add("evima|evi|eva|eve|ama|ima|em|a|e|i|u|");	
+		
 		wordStart.add(".+([^o]m|ič|nč|uč|b|c|ć|d|đ|h|j|k|l|n|p|r|s|š|v|z|ž)a"); wordEnd.add("jući|vši|smo|ste|jmo|jte|mo|te|ju|ti|še|hu|la|li|le|lo|na|no|ni|ne|t|h|o|j|n|m|š");
 		wordStart.add(".+(a|i|o)sta"); wordEnd.add("dosmo|doste|doše|nemo|demo|nete|dete|nimo|nite|nila|vši|nem|dem|neš|deš|doh|de|ti|ne|nu|du|la|li|lo|le|t|o");
 		wordStart.add(".+ta"); wordEnd.add("smo|ste|jmo|jte|vši|ti|mo|te|ju|še|la|lo|le|li|na|no|ni|ne|n|j|o|m|š|t|h");
@@ -306,9 +353,12 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		wordStart.add(".+(b|č|d|l|m|p|r|s|š|ž)i"); wordEnd.add("jemo|jete|jem|ješ|smo|ste|jmo|jte|vši|mo|lu|še|te|ti|ju|je|la|lo|li|le|t|m|š|h|j|o");
 		wordStart.add(".+luč"); wordEnd.add("ujete|ujući|ujemo|ujem|uješ|ismo|iste|ujmo|ujte|uje|uju|iše|iti|imo|ite|ila|ilo|ili|ile|ena|eno|eni|ene|uj|io|en|im|iš|it|ih|e|i");
 		wordStart.add(".+jeti"); wordEnd.add("smo|ste|še|mo|te|ti|li|la|lo|le|m|š|t|h|o");
+		
+		//wordStart.add(".+eti"); wordEnd.add("smo|ste|še|mo|te|ti|li|la|lo|le|m|š|t|h|o"); // Nemanja - hteti, leteti, videti...
+		
 		wordStart.add(".+e"); wordEnd.add("lama|lima|lom|lu|li|la|le|lo|l");
 		wordStart.add(".+i"); wordEnd.add("lama|lima|lom|lu|li|la|le|lo|l");
-		wordStart.add(".+at"); wordEnd.add("ijega|ijemu|ijima|ijeg|ijem|ijih|ijim|ima|oga|ome|omu|iji|ije|ija|iju|oj|og|om|im|ih|a|u|i|e|o|");
+		wordStart.add(".+at"); wordEnd.add("ijega|ijemu|ijima|ijeg|ijem|ijih|ijim|ima|oga|ome|omu|iji|ije|ija|iju|oj|og|om|im|ih|a|u|i|e|o|"); // 70
 		wordStart.add(".+et"); wordEnd.add("avši|ući|emo|imo|em|eš|e|u|i");
 		wordStart.add(".+"); wordEnd.add("ajući|alima|alom|avši|asmo|aste|ajmo|ajte|ivši|amo|ate|aju|ati|aše|ahu|ali|ala|ale|alo|ana|ano|ani|ane|am|aš|at|ah|ao|aj|an");
 		wordStart.add(".+"); wordEnd.add("anje|enje|anja|enja|enom|enoj|enog|enim|enih|anom|anoj|anog|anim|anih|eno|ovi|ova|oga|ima|ove|enu|anu|ena|ama");
@@ -389,6 +439,54 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		stopset.add("može");
 		stopset.add("možemo");
 		stopset.add("možete");
+		
+		// Nemanja: nepromenljive rečo
+		stopset.add("međutim");
+		stopset.add("naime");
+		stopset.add("naravno");
+		stopset.add("nego");
+		stopset.add("odmah");
+		stopset.add("onda");
+		stopset.add("osim");
+		stopset.add("pre");
+		stopset.add("posle");
+		stopset.add("ka");
+		stopset.add("od");
+		stopset.add("do");
+		stopset.add("skoro");
+		stopset.add("tako");
+		stopset.add("uglavnom");
+		stopset.add("zašto");
+		stopset.add("zato");
+		stopset.add("ako");
+		stopset.add("između");
+		stopset.add("kao");
+		stopset.add("kako");
+		stopset.add("prema");
+		stopset.add("ukoliko");
+		stopset.add("ali");
+		stopset.add("svega");
+		stopset.add("tamo");
+		stopset.add("tokom");
+		stopset.add("umesto");
+		stopset.add("uopšte");
+		stopset.add("uoči");
+		stopset.add("veoma");
+		stopset.add("vrlo");
+		stopset.add("čime");
+		stopset.add("audio"); // strana reč, ne menja se po padežima. Npr. audio snimak, na audio snimku, od audio snimka...
+		stopset.add("nema");
+		stopset.add("nekoliko");
+		stopset.add("ništa");
+		stopset.add("njemu");
+		stopset.add("njoj");
+		stopset.add("odsto");
+		stopset.add("preko");
+		stopset.add("pošto");
+		stopset.add("ili");
+		stopset.add("takođe");
+		stopset.add("ubuduće");
+		
 		
 		// TRANSFORMATIONS
 		transformations = new HashMap<String, String> (200);
@@ -496,6 +594,9 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		transformations.put("maca", "mca");
 		transformations.put("naca", "nca");
 		transformations.put("nac", "nca");
+		
+		//transformations.put("nci", "nac"); // Nemanja: npr albanci...
+		
 		transformations.put("voljan", "voljni");
 		transformations.put("anaka", "anki");
 		transformations.put("vac", "vca");
@@ -523,6 +624,16 @@ public class LjubesicPandzicStemmer extends SCStemmer {
 		transformations.put("jebe", "jebi");
 		transformations.put("baci", "baci");
 		transformations.put("ašan", "ašni");
+		transformations.put("čki","kki"); // Nemanja, palatalizacija
+		transformations.put("čke","kke"); // Nemanja, palatalizacija
+		transformations.put("žni","gni"); // Nemanja, palatalizacija
+		transformations.put("čanje","kanje"); // Nemanja, palatalizacija
+		transformations.put("šni","hni"); // Nemanja, palatalizacija
+		transformations.put("žiti","giti"); // Nemanja, palatalizacija
+		transformations.put("štvo","ktvo"); // Nemanja, palatalizacija
+
+		//transformations.put("ijada", ""); // Nemanja: Olimpijada, pršutijeda...		
+		//transformations.put("eo", "elo"); // Nemanja: L u O
 		
 		for (int i=0; i<wordStart.size(); i++) {
 			String pattern = "^("+wordStart.get(i)+")("+wordEnd.get(i)+")$";
